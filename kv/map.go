@@ -30,7 +30,7 @@ func (m *Map) Put(k string, v any) {
 func (m *Map) Get(k string) any {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.m[k]
+	return m.m[k].V
 }
 
 func (m *Map) Has(k string) bool {
@@ -38,4 +38,10 @@ func (m *Map) Has(k string) bool {
 	defer m.mu.RUnlock()
 	_, ok := m.m[k]
 	return ok
+}
+
+func (m *Map) Delete(k string) {
+	m.mu.Lock()
+	delete(m.m, k)
+	m.mu.Unlock()
 }

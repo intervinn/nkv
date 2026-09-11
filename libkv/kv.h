@@ -18,5 +18,6 @@ const char *kv_err(kv_client_t *c);
 int kv_exists(kv_client_t *c, char *key, bool *value);
 int kv_put(kv_client_t *c, char *key, char *value);
 int kv_get(kv_client_t *c, char *key, char **value);
+int kv_del(kv_client_t *c, char *key);
 
 #endif

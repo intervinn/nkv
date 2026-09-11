@@ -78,23 +78,115 @@ int kv_exists(kv_client_t *c, char *key, bool *value) {
         return -1;
     }
 
-    /*
     char hd[4] = {0};
-    ssize_t read = recv(c->sock_fd, hd, 4, 0);
-    
+    if (recv(c->sock_fd, hd, 4, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
     uint32_t len;
     memcpy(&len, hd, sizeof(len));
-    */
+
+    if (recv(c->sock_fd, c->buf, len, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    *value = strcmp(c->buf, "YES") == 0;
 
     return 0;
 }
 
 int kv_put(kv_client_t *c, char *key, char *value) {
-    return 0;
+    int n = kv_marshal(c->buf+4, 3, "SET", key, value);
+    uint32_t un = (uint32_t)n;
+    memcpy(c->buf, &un, sizeof(un));
+
+    if (send(c->sock_fd, c->buf, n+4, 0) < 0) {
+        c->err = "send failed";
+        return -1;
+    }
+
+    char hd[4] = {0};
+    if (recv(c->sock_fd, hd, 4, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    uint32_t len;
+    memcpy(&len, hd, sizeof(len));
+
+    if (recv(c->sock_fd, c->buf, len, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    if (strncmp(c->buf, "OK", 3) == 0) {
+        return 0;
+    }
+
+    c->err = "put failed";
+    return -1;
 }
 
 int kv_get(kv_client_t *c, char *key, char **value) {
+    int n = kv_marshal(c->buf+4, 2, "GET", key);
+    uint32_t un = (uint32_t)n;
+    memcpy(c->buf, &un, sizeof(un));
+
+    if (send(c->sock_fd, c->buf, n+4, 0) < 0) {
+        c->err = "send failed";
+        return -1;
+    }
+    
+    char hd[4] = {0};
+    if (recv(c->sock_fd, hd, 4, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    uint32_t len;
+    memcpy(&len, hd, sizeof(len));
+
+    if (recv(c->sock_fd, c->buf, len, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    *value = strndup(c->buf, len);
     return 0;
+}
+
+int kv_del(kv_client_t *c, char *key) {
+    int n = kv_marshal(c->buf+4, 2, "DEL", key);
+    uint32_t un = (uint32_t)n;
+    memcpy(c->buf, &un, sizeof(un));
+
+    if (send(c->sock_fd, c->buf, n+4, 0) < 0) {
+        c->err = "send failed";
+        return -1;
+    }
+    
+    char hd[4] = {0};
+    if (recv(c->sock_fd, hd, 4, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    uint32_t len;
+    memcpy(&len, hd, sizeof(len));
+
+    if (recv(c->sock_fd, c->buf, len, 0) == -1) {
+        c->err = "recv failed";
+        return -1;
+    }
+
+    if (strncmp(c->buf, "OK", 3) == 0) {
+        return 0;
+    }
+
+    c->err = "del failed";
+    return -1;
 }
 
 static int kv_marshal(char *b, int count, ...) {
